@@ -220,7 +220,32 @@ class ArsipController extends Controller
 
         return redirect()->route('arsip.index')->with('success', 'Arsip berhasil dihapus.');
     }
+    private function countPages(Arsip $arsip): int
+    {
+        // Ambil path file - sesuaikan dengan nama kolom file di model kamu
+        $filePath = storage_path('app/public/' . $arsip->file);
 
+        if (!file_exists($filePath)) {
+            return 0;
+        }
+
+        $extension = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        // Jika bukan PDF, langsung return 1
+        if ($extension !== 'pdf') {
+            return 1;
+        }
+
+        try {
+            $parser = new \Smalot\PdfParser\Parser();
+            $pdf = $parser->parseFile($filePath);
+            $pages = $pdf->getPages();
+
+            return count($pages);
+        } catch (\Exception $e) {
+            return 0; // Gagal parse
+        }
+    }
     public function exportExcel(Request $request)
     {
         $user = $request->user();
@@ -244,17 +269,25 @@ class ArsipController extends Controller
                 'Tanggal Dilegalkan' => $arsip->tgl_dilegalkan->format('d/m/Y'),
                 'Jenis Arsip' => $arsip->jenisArsip->nama_jenis ?? '-',
                 'Bidang' => $arsip->bidang->nama_bidang ?? '-',
+                'Jumlah Halaman' => $this->countPages($arsip), // ✅ Tambahan
             ];
         })->toArray();
 
-        $headings = ['No', 'Nomor Arsip', 'Judul Arsip', 'Tanggal Dilegalkan', 'Jenis Arsip', 'Bidang'];
+        $headings = [
+            'No',
+            'Nomor Arsip',
+            'Judul Arsip',
+            'Tanggal Dilegalkan',
+            'Jenis Arsip',
+            'Bidang',
+            'Jumlah Halaman', // ✅ Tambahan
+        ];
 
         return Excel::download(
             new ArsipExport($data, $headings),
             'laporan-arsip-' . date('Y-m-d') . '.xlsx'
         );
     }
-
     public function exportPdf(Request $request)
     {
         $user = $request->user();
@@ -278,6 +311,7 @@ class ArsipController extends Controller
                 'tgl_dilegalkan' => $arsip->tgl_dilegalkan->format('d/m/Y'),
                 'jenis_arsip' => $arsip->jenisArsip->nama_jenis ?? '-',
                 'bidang' => $arsip->bidang->nama_bidang ?? '-',
+                'jumlah_halaman' => $this->countPages($arsip), // ✅ Tambahan
             ];
         });
 
@@ -286,4 +320,69 @@ class ArsipController extends Controller
 
         return $pdf->download('laporan-arsip-' . date('Y-m-d') . '.pdf');
     }
+    // public function exportExcel(Request $request)
+    // {
+    //     $user = $request->user();
+    //     $query = Arsip::with(['jenisArsip', 'bidang']);
+
+    //     if ($user->isUser()) {
+    //         $query->where('bidang_id', $user->bidang_id);
+    //     }
+
+    //     if ($request->filled('bidang_id') && ($user->isAdmin() || $user->isPimpinan())) {
+    //         $query->where('bidang_id', $request->bidang_id);
+    //     }
+
+    //     $arsips = $query->orderBy('created_at', 'desc')->get();
+
+    //     $data = $arsips->map(function ($arsip, $index) {
+    //         return [
+    //             'No' => $index + 1,
+    //             'Nomor Arsip' => $arsip->nomor_arsip,
+    //             'Judul Arsip' => $arsip->judul,
+    //             'Tanggal Dilegalkan' => $arsip->tgl_dilegalkan->format('d/m/Y'),
+    //             'Jenis Arsip' => $arsip->jenisArsip->nama_jenis ?? '-',
+    //             'Bidang' => $arsip->bidang->nama_bidang ?? '-',
+    //         ];
+    //     })->toArray();
+
+    //     $headings = ['No', 'Nomor Arsip', 'Judul Arsip', 'Tanggal Dilegalkan', 'Jenis Arsip', 'Bidang'];
+
+    //     return Excel::download(
+    //         new ArsipExport($data, $headings),
+    //         'laporan-arsip-' . date('Y-m-d') . '.xlsx'
+    //     );
+    // }
+
+    // public function exportPdf(Request $request)
+    // {
+    //     $user = $request->user();
+    //     $query = Arsip::with(['jenisArsip', 'bidang']);
+
+    //     if ($user->isUser()) {
+    //         $query->where('bidang_id', $user->bidang_id);
+    //     }
+
+    //     if ($request->filled('bidang_id') && ($user->isAdmin() || $user->isPimpinan())) {
+    //         $query->where('bidang_id', $request->bidang_id);
+    //     }
+
+    //     $arsips = $query->orderBy('created_at', 'desc')->get();
+
+    //     $data = $arsips->map(function ($arsip, $index) {
+    //         return [
+    //             'no' => $index + 1,
+    //             'nomor_arsip' => $arsip->nomor_arsip,
+    //             'judul' => $arsip->judul,
+    //             'tgl_dilegalkan' => $arsip->tgl_dilegalkan->format('d/m/Y'),
+    //             'jenis_arsip' => $arsip->jenisArsip->nama_jenis ?? '-',
+    //             'bidang' => $arsip->bidang->nama_bidang ?? '-',
+    //         ];
+    //     });
+
+    //     $pdf = Pdf::loadView('arsip.export-pdf', compact('data'));
+    //     $pdf->setPaper('A4', 'landscape');
+
+    //     return $pdf->download('laporan-arsip-' . date('Y-m-d') . '.pdf');
+    // }
 }
