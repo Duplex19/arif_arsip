@@ -9,6 +9,7 @@ use App\Models\JenisArsip;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use Maatwebsite\Excel\Facades\Excel;
 
 class ArsipController extends Controller
@@ -57,31 +58,49 @@ class ArsipController extends Controller
     {
         $user = request()->user();
         if ($user->isPimpinan()) {
-            abort(403, 'Pimpinan tidak dapat mengunggah arsip.');
+            // abort(403, 'Pimpinan tidak dapat mengunggah arsip.');
+            return redirect()->back()->with('error', 'Pimpinan tidak dapat mengunggah arsip.');
         }
 
         $jenisArsipList = JenisArsip::orderBy('nama_jenis')->get();
-
-        return view('arsip.create', compact('jenisArsipList'));
+        $bidangList = Bidang::orderBy('nama_bidang')->get();
+        return view('arsip.create', compact(['jenisArsipList', 'bidangList']));
     }
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $user = $request->user();
         if ($user->isPimpinan()) {
-            abort(403, 'Pimpinan tidak dapat mengunggah arsip.');
+            // abort(403, 'Pimpinan tidak dapat mengunggah arsip.');
+            return redirect()->back()->with('error', 'Pimpinan tidak dapat mengunggah arsip.');
+
         }
 
-        $validated = $request->validate([
+        $validate = Validator::make($request->all(), [
             'nomor_arsip' => 'required|string|max:255',
             'tgl_dilegalkan' => 'required|date',
             'judul' => 'required|string|max:500',
             'jenis_arsip_id' => 'required|exists:jenis_arsip,id',
+            'bidang_id' => 'required|exists:bidang,id',
             'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
         ]);
+        // $validated = $request->validate([
+        //     'nomor_arsip' => 'required|string|max:255',
+        //     'tgl_dilegalkan' => 'required|date',
+        //     'judul' => 'required|string|max:500',
+        //     'jenis_arsip_id' => 'required|exists:jenis_arsip,id',
+        //     'file' => 'required|file|mimes:pdf,jpg,jpeg,png|max:5120',
+        // ]);
+
+        if ($validate->fails()) {
+            return redirect()->back()->with('error', $validate->errors()->first())->withInput();
+
+        }
+        $validated = $validate->validated();
 
         $file = $request->file('file');
-        $filename = time().'_'.$file->hashName();
+        $filename = time() . '_' . $file->hashName();
         $path = $file->storeAs('arsip', $filename, 'public');
 
         Arsip::create([
@@ -89,7 +108,7 @@ class ArsipController extends Controller
             'tgl_dilegalkan' => $validated['tgl_dilegalkan'],
             'judul' => $validated['judul'],
             'jenis_arsip_id' => $validated['jenis_arsip_id'],
-            'bidang_id' => $user->bidang_id,
+            'bidang_id' => $validated['bidang_id'],
             'file_path' => $path,
             'file_size' => $file->getSize(),
             'file_type' => $file->getClientOriginalExtension(),
@@ -103,11 +122,14 @@ class ArsipController extends Controller
     {
         $user = request()->user();
         if ($user->isUser() && $arsip->bidang_id !== $user->bidang_id) {
-            abort(403, 'Anda tidak dapat mengakses arsip bidang lain.');
+            return redirect()->back()->with('error', 'Anda tidak dapat mengakses arsip bidang lain.');
+
         }
 
-        if (! Storage::disk('public')->exists($arsip->file_path)) {
-            abort(404, 'File tidak ditemukan.');
+        if (!Storage::disk('public')->exists($arsip->file_path)) {
+            // abort(404, 'File tidak ditemukan.');
+            return redirect()->back()->with('error', 'File tidak ditemukan.');
+
         }
 
         return Storage::disk('public')->response($arsip->file_path);
@@ -117,10 +139,12 @@ class ArsipController extends Controller
     {
         $user = request()->user();
         if ($user->isPimpinan()) {
-            abort(403, 'Pimpinan tidak dapat mengedit arsip.');
+            // abort(403, 'Pimpinan tidak dapat mengedit arsip.');
+            return redirect()->back()->with('error', 'Pimpinan tidak dapat mengedit arsip.');
         }
         if ($user->isUser() && $arsip->bidang_id !== $user->bidang_id) {
-            abort(403, 'Anda tidak dapat mengedit arsip bidang lain.');
+            // abort(403, 'Anda tidak dapat mengedit arsip bidang lain.');
+            return redirect()->back()->with('error', 'Anda tidak dapat mengedit arsip bidang lain.');
         }
 
         $jenisArsipList = JenisArsip::orderBy('nama_jenis')->get();
@@ -132,10 +156,12 @@ class ArsipController extends Controller
     {
         $user = $request->user();
         if ($user->isPimpinan()) {
-            abort(403, 'Pimpinan tidak dapat mengedit arsip.');
+            // abort(403, 'Pimpinan tidak dapat mengedit arsip.');
+            return redirect()->back()->with('error', 'Pimpinan tidak dapat mengedit arsip.');
         }
         if ($user->isUser() && $arsip->bidang_id !== $user->bidang_id) {
-            abort(403, 'Anda tidak dapat mengedit arsip bidang lain.');
+            // abort(403, 'Anda tidak dapat mengedit arsip bidang lain.');
+            return redirect()->back()->with('error', 'Anda tidak dapat mengedit arsip bidang lain.');
         }
 
         $rules = [
@@ -166,7 +192,7 @@ class ArsipController extends Controller
         if ($request->hasFile('file')) {
             Storage::disk('public')->delete($arsip->file_path);
             $file = $request->file('file');
-            $filename = time().'_'.$file->hashName();
+            $filename = time() . '_' . $file->hashName();
             $data['file_path'] = $file->storeAs('arsip', $filename, 'public');
             $data['file_size'] = $file->getSize();
             $data['file_type'] = $file->getClientOriginalExtension();
@@ -181,10 +207,12 @@ class ArsipController extends Controller
     {
         $user = request()->user();
         if ($user->isPimpinan()) {
-            abort(403, 'Pimpinan tidak dapat menghapus arsip.');
+            // abort(403, 'Pimpinan tidak dapat menghapus arsip.');
+            return redirect()->back()->with('error', 'Pimpinan tidak dapat menghapus arsip.');
         }
         if ($user->isUser() && $arsip->bidang_id !== $user->bidang_id) {
-            abort(403, 'Anda tidak dapat menghapus arsip bidang lain.');
+            // abort(403, 'Anda tidak dapat menghapus arsip bidang lain.');
+            return redirect()->back()->with('error', 'Anda tidak dapat menghapus arsip bidang lain.');
         }
 
         Storage::disk('public')->delete($arsip->file_path);
@@ -223,7 +251,7 @@ class ArsipController extends Controller
 
         return Excel::download(
             new ArsipExport($data, $headings),
-            'laporan-arsip-'.date('Y-m-d').'.xlsx'
+            'laporan-arsip-' . date('Y-m-d') . '.xlsx'
         );
     }
 
@@ -256,6 +284,6 @@ class ArsipController extends Controller
         $pdf = Pdf::loadView('arsip.export-pdf', compact('data'));
         $pdf->setPaper('A4', 'landscape');
 
-        return $pdf->download('laporan-arsip-'.date('Y-m-d').'.pdf');
+        return $pdf->download('laporan-arsip-' . date('Y-m-d') . '.pdf');
     }
 }
