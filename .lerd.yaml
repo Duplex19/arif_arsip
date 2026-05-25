@@ -1,0 +1,13 @@
+domains:
+    - arsip_arif
+framework: laravel
+framework_version: "13"
+secured: true
+services:
+    - redis
+    - postgres
+    - meilisearch
+    - mailpit
+workers:
+    - queue
+    - schedule

@@ -1,0 +1,20 @@
+{
+    "mcpServers": {
+        "laravel-boost": {
+            "args": [
+                "/home/andre/Development/Laravel/arsip_arif/arsip/artisan",
+                "boost:mcp"
+            ],
+            "command": "/usr/local/bin/php"
+        },
+        "lerd": {
+            "args": [
+                "mcp"
+            ],
+            "command": "lerd",
+            "env": {
+                "LERD_SITE_PATH": "/home/andre/Development/Laravel/arsip_arif"
+            }
+        }
+    }
+}

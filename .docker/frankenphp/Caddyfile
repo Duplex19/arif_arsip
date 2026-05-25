@@ -1,0 +1,19 @@
+{
+    admin 0.0.0.0:2019
+    {$CADDY_GLOBAL_OPTIONS}
+
+    frankenphp {
+        num_threads 4
+    }
+}
+
+{$SERVER_NAME:localhost} {
+    log {
+        level {$LOG_LEVEL:WARN}
+    }
+
+    root * /app/public
+    encode zstd br gzip
+
+    php_server
+}

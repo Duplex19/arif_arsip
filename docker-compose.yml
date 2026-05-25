@@ -1,0 +1,89 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arsip-app
+    restart: unless-stopped
+    command: ["sh", "-c", "php artisan config:clear; php artisan storage:link --force; php artisan migrate --force; frankenphp run --config /etc/caddy/Caddyfile --adapter caddyfile"]
+    ports:
+      - "${APP_PORT:-80}:80"
+      - "${APP_SSL_PORT:-443}:443"
+    environment:
+      - APP_ENV=production
+      - APP_DEBUG=false
+      - APP_KEY=base64:GQwjV+PYa2H3q0cmwLxSfIJkQoaKjqpnR3pDjz70y3s=
+      - APP_URL=https://e-arsip.dkpwk.my.id
+      - SERVER_NAME=:80
+      - TRUSTED_PROXIES=*
+      - DB_CONNECTION=mysql
+      - DB_HOST=database
+      - DB_PORT=3306
+      - DB_DATABASE=${DB_DATABASE:-arsip_arif}
+      - DB_USERNAME=${DB_USERNAME:-arsip_user}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - SESSION_DRIVER=file
+      - CACHE_STORE=file
+      - QUEUE_CONNECTION=sync
+      - FILESYSTEM_DISK=public
+      - OCTANE_SERVER=frankenphp
+      - OCTANE_HTTPS=false
+    volumes:
+      - storage_data:/app/storage
+      - public_storage:/app/public/storage
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      database:
+        condition: service_healthy
+      cache:
+        condition: service_started
+    networks:
+      - arsip-network
+  database:
+    image: mysql:8.0
+    container_name: arsip-database
+    restart: unless-stopped
+    ports:
+      - "${DB_PORT_MAP:-3307}:3306"
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-arsip_arif}
+      - MYSQL_USER=${DB_USERNAME:-arsip_user}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-root_secret}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DB_ROOT_PASSWORD:-root_secret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - arsip-network
+  cache:
+    image: redis:7-alpine
+    container_name: arsip-cache
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT_MAP:-6380}:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --save 60 1
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - arsip-network
+volumes:
+  mysql_data:
+  redis_data:
+  storage_data:
+  public_storage:
+  caddy_data:
+  caddy_config:
+networks:
+  arsip-network:
+    driver: bridge
