@@ -223,7 +223,7 @@ class ArsipController extends Controller
     private function countPages(Arsip $arsip): int
     {
         // Ambil path file - sesuaikan dengan nama kolom file di model kamu
-        $filePath = storage_path('app/public/' . $arsip->file);
+        $filePath = storage_path('app/public/' . $arsip->file_path);
 
         if (!file_exists($filePath)) {
             return 0;
