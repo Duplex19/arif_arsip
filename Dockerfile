@@ -70,7 +70,7 @@ RUN if [ -f "package.json" ]; then \
         npm run build 2>/dev/null || true; \
     fi
 
-RUN composer require smalot/pdfparser
+# RUN composer require smalot/pdfparser
 # Optimize Laravel for production
 RUN if [ "$APP_ENV" = "production" ]; then \
         php artisan optimize; \
